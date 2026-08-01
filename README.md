@@ -11,7 +11,7 @@ Learn how to build a production-ready CI/CD pipeline that:
 - **Scans** for security vulnerabilities with Trivy
 - **Implements** GitOps practices for automated deployments
 - **Follows** Cloud Native best practices
-
+## test
 ## CI/CD Pipeline Overview
 
 <img src="src/assets/diagram.png" alt="CI/CD Pipeline Diagram" width="600" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
