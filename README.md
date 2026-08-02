@@ -322,3 +322,5 @@ MIT License - Educational use for Cloud Native Days 2026 workshop
 
 **Workshop:** Cloud Native Days 2026  
 **Focus:** CI/CD, Docker, Security Scanning, GitOps
+#   g i t o p s  
+ 
