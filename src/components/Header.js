@@ -15,7 +15,7 @@ const Header = () => {
         <img src={DevOpsLogo} alt="DevOps" className="hero-image" />
         <h1 className="hero-title">ADN Group</h1>
         <p className="hero-subtitle">ADN Technologies Limited</p>
-        <p className="hero-subtitle-2">Technology Assessment & Adoption Framework</p>
+        <p className="hero-subtitle-2">Technology Assessment & Adoption Framework| This my my night</p>
         <p className="hero-date">{today}</p>
       </div>
       <footer className="hero-footer">
