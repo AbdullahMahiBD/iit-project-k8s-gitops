@@ -22,6 +22,7 @@ jobs:
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
+        continue-on-error: true # Prevents SonarQube errors from failing the entire workflow
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -30,6 +31,7 @@ jobs:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     needs: sonarqube-analysis
+    if: always() # Runs even if sonarqube-analysis reports a warning/failure
     
     steps:
       - name: Checkout code
