@@ -1,22 +1,17 @@
 import React from 'react';
 import './Header.css';
-import KubernetesLogo from '../assets/kubernetes-logo.svg';
 import DevOpsLogo from '../assets/devops-logo.svg';
 
 const Header = () => {
   return (
-    <header className="header">
-      <div className="header-content">
-        <div className="logo-container">
-          <img src={DevOpsLogo} alt="DevOps" className="devops-logo" />
-          <h1 className="title">Mamunur Rashid DevOps Skills Radar aws</h1>
-          <img src={KubernetesLogo} alt="Kubernetes" className="k8s-logo" />
-        </div>
-        <p className="subtitle">Technology Assessment & Adoption Framework</p>
-      </div>
-    </header>
+    <div className="hero">
+      <img src={DevOpsLogo} alt="DevOps" className="hero-image" />
+      <h1 className="hero-title">Mamunur Rashid DevOps Skills Radar</h1>
+      <p className="hero-description">
+        Technology Assessment & Adoption Framework
+      </p>
+    </div>
   );
 };
 
 export default Header;
-
