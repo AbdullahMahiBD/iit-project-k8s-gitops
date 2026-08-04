@@ -9,7 +9,7 @@ on:
       - main
 
 env:
-  IMAGE_NAME: devops-radar
+  IMAGE_NAME: devops-project
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
           ssh-private-key: ${{ secrets.GITOPS_DEPLOY_KEY }}
 
       # Step 3: Checkout your GitOps repository using deploy key (SSH)
-      # GITOPS_REPO format: owner/repo-name (e.g., amdadulbari/cloudnative-gitops)
+      # GITOPS_REPO format: owner/repo-name (e.g., AbdullahMahiBD/workshop-gitops)
       - name: Checkout GitOps repository
         run: |
           git clone git@github.com:${{ secrets.GITOPS_REPO }}.git gitops-repo
