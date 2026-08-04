@@ -3,13 +3,24 @@ import './Header.css';
 import DevOpsLogo from '../assets/devops-logo.svg';
 
 const Header = () => {
+  const today = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   return (
     <div className="hero">
-      <img src={DevOpsLogo} alt="DevOps" className="hero-image" />
-      <h1 className="hero-title">Mamunur Rashid DevOps Skills Radar</h1>
-      <p className="hero-description">
-        Technology Assessment & Adoption Framework
-      </p>
+      <div className="hero-content">
+        <img src={DevOpsLogo} alt="DevOps" className="hero-image" />
+        <h1 className="hero-title">ADN Group</h1>
+        <p className="hero-subtitle">ADN Technologies Limited</p>
+        <p className="hero-subtitle-2">Technology Assessment & Adoption Framework</p>
+        <p className="hero-date">{today}</p>
+      </div>
+      <footer className="hero-footer">
+        &copy; {new Date().getFullYear()} IIT JU
+      </footer>
     </div>
   );
 };
