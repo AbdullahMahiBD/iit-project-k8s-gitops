@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  IMAGE_NAME: devops-radar
+  IMAGE_NAME: devops-project
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
