@@ -13,16 +13,15 @@ jobs:
   sonarqube-analysis:
     name: SonarQube Code Analysis
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Full history fetch required for SonarQube blame info
+          fetch-depth: 0
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
-        continue-on-error: true # Prevents SonarQube errors from failing the entire workflow
+        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -31,8 +30,7 @@ jobs:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     needs: sonarqube-analysis
-    if: always() # Runs even if sonarqube-analysis reports a warning/failure
-    
+    if: always()
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,7 +60,6 @@ jobs:
     name: Scan Docker Image with Trivy
     runs-on: ubuntu-latest
     needs: build-and-push
-    
     steps:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -74,8 +71,7 @@ jobs:
         id: commit
         run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-      - name: Run Trivy vulnerability scanner (Table)
-        id: trivy-table
+      - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.commit.outputs.sha }}
@@ -84,12 +80,36 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
 
-      - name: Upload Trivy scan results as artifacts
+      - name: Upload Trivy results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-scan-results-${{ steps.commit.outputs.sha }}
-          path: |
-            trivy-results.txt
-          retention-days: 30
-          if-no-files-found: warn
+          path: trivy-results.txt
+          retention-days: 7
+
+  update-gitops:
+    name: Update GitOps Repository
+    runs-on: ubuntu-latest
+    needs: trivy-scan
+    steps:
+      - name: Checkout GitOps Repo
+        uses: actions/checkout@v4
+        with:
+          repository: 'AbdullahMahiBD/workshop-gitops'
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops-repo
+
+      - name: Update Image Tag in deployment.yml
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          sed -i "s|image: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:.*|image: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}|g" gitops-repo/frontend/deployment.yml
+
+      - name: Commit and Push Changes
+        run: |
+          cd gitops-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add frontend/deployment.yml
+          git commit -m "chore: auto-deploy commit ${GITHUB_SHA::7}" || exit 0
+          git push
