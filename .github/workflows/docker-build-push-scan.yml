@@ -71,7 +71,24 @@ jobs:
         id: commit
         run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-      - name: Run Trivy vulnerability scanner
+      # 1. Download official HTML template
+      - name: Download Trivy HTML Template
+        run: |
+          wget https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -O html.tpl
+
+      # 2. Generate HTML Report
+      - name: Generate HTML Vulnerability Report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.commit.outputs.sha }}
+          format: 'template'
+          template: '@html.tpl'
+          output: 'trivy-report.html'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+
+      # 3. Generate Table Report for Console & GitHub Job Summary
+      - name: Generate Table Report
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.commit.outputs.sha }}
@@ -80,13 +97,25 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
 
-      - name: Upload Trivy results
+      # 4. Display Results in GitHub Actions UI Summary
+      - name: Publish Trivy Summary to GitHub Actions
+        if: always()
+        run: |
+          echo "### 🛡️ Trivy Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # 5. Upload Reports as Downloadable Artifacts (HTML & TXT)
+      - name: Upload Trivy HTML & TXT Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-scan-results-${{ steps.commit.outputs.sha }}
-          path: trivy-results.txt
-          retention-days: 7
+          name: trivy-security-reports-${{ steps.commit.outputs.sha }}
+          path: |
+            trivy-report.html
+            trivy-results.txt
+          retention-days: 14
 
   update-gitops:
     name: Update GitOps Repository
