@@ -124,7 +124,7 @@ jobs:
       # Deploy Live Report directly to your VM (https://trivy.iitju.tech)
       - name: Deploy Live Trivy Dashboard to VM
         uses: appleboy/scp-action@v0.1.7
-        if: always()
+        continue-on-error: true
         with:
           host: '4.193.81.34'
           username: 'IIIT'
