@@ -1,4 +1,4 @@
-name: Build, Push and Scan Docker Image
+name: Build, Push, Scan and Deploy Pipeline
 
 on:
   push:
@@ -10,6 +10,9 @@ env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
+  # =========================================================================
+  # 1. SonarQube Static Application Security Testing (SAST)
+  # =========================================================================
   sonarqube-analysis:
     name: SonarQube Code Analysis
     runs-on: ubuntu-latest
@@ -26,6 +29,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
+  # =========================================================================
+  # 2. Docker Image Build & Push to Docker Hub
+  # =========================================================================
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
@@ -44,50 +50,58 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set short commit SHA
+      - name: Extract Short Git Commit SHA
         id: commit
         run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
+          context: .
+          file: ./Dockerfile
           push: true
           tags: |
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.commit.outputs.sha }}
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
 
+  # =========================================================================
+  # 3. Trivy Security Scan & Live Web Dashboard Deployment
+  # =========================================================================
   trivy-scan:
     name: Scan Docker Image with Trivy
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set short commit SHA
+      - name: Extract Short Git Commit SHA
         id: commit
         run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-      # 1. Download official HTML template
-      - name: Download Trivy HTML Template
+      # Download official HTML template
+      - name: Fetch HTML Template
         run: |
-          wget https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -O html.tpl
+          wget -q https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -O html.tpl
 
-      # 2. Generate HTML Report
+      # Generate index.html report
       - name: Generate HTML Vulnerability Report
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.commit.outputs.sha }}
           format: 'template'
           template: '@html.tpl'
-          output: 'trivy-report.html'
+          output: 'index.html'
           exit-code: '0'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
 
-      # 3. Generate Table Report for Console & GitHub Job Summary
+      # Generate Table report
       - name: Generate Table Report
         uses: aquasecurity/trivy-action@master
         with:
@@ -97,26 +111,42 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
 
-      # 4. Display Results in GitHub Actions UI Summary
+      # Render Summary in GitHub Actions Web UI
       - name: Publish Trivy Summary to GitHub Actions
         if: always()
         run: |
-          echo "### 🛡️ Trivy Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### 🛡️ Trivy Container Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Scanned Image:** \`${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.commit.outputs.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo '```text' >> $GITHUB_STEP_SUMMARY
           cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      # 5. Upload Reports as Downloadable Artifacts (HTML & TXT)
-      - name: Upload Trivy HTML & TXT Reports
+      # Deploy Live Report directly to your VM (https://trivy.iitju.tech)
+      - name: Deploy Live Trivy Dashboard to VM
+        uses: appleboy/scp-action@v0.1.7
+        if: always()
+        with:
+          host: '4.193.81.34'
+          username: 'IIIT'
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: 'index.html'
+          target: '/var/www/trivy-reports/'
+          strip_components: 0
+
+      # Upload Artifacts
+      - name: Upload Trivy Security Report Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-security-reports-${{ steps.commit.outputs.sha }}
           path: |
-            trivy-report.html
+            index.html
             trivy-results.txt
           retention-days: 14
 
+  # =========================================================================
+  # 4. GitOps Auto-Update (ArgoCD Auto-Deployment)
+  # =========================================================================
   update-gitops:
     name: Update GitOps Repository
     runs-on: ubuntu-latest
@@ -134,7 +164,7 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           sed -i "s|image: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:.*|image: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}|g" gitops-repo/frontend/deployment.yml
 
-      - name: Commit and Push Changes
+      - name: Commit and Push to GitOps Repo
         run: |
           cd gitops-repo
           git config user.name "github-actions[bot]"
